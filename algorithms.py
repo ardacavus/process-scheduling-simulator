@@ -7,7 +7,6 @@ def schedule_fcfs(processes: List[Process]):
     """
     First-Come, First-Served (FCFS) Algoritması
     """
-    # 1. Varış zamanına göre sırala
     processes.sort(key=lambda x: x.arrival_time)
 
     current_time = 0
@@ -36,7 +35,6 @@ def schedule_sjf(processes: List[Process]):
     """
     Shortest Job First (SJF) Algoritması
     """
-    # Önce geliş zamanına göre sırala (Eşitlik durumunda FCFS olması için)
     processes.sort(key=lambda x: x.arrival_time)
 
     current_time = 0
@@ -47,7 +45,6 @@ def schedule_sjf(processes: List[Process]):
     print("\n--- Scheduling Algorithm: SJF ---")
 
     while completed_processes < n:
-        # Hazır kuyruğu: Gelmiş ve bitmemiş olanlar
         ready_queue = [p for p in processes if p.arrival_time <= current_time and p.finish_time == 0]
 
         if not ready_queue:
@@ -57,7 +54,6 @@ def schedule_sjf(processes: List[Process]):
                 current_time = next_arrival
             continue
 
-        # Burst time'ı en küçük olanı seç
         current_process = min(ready_queue, key=lambda x: x.burst_time)
 
         start_time = current_time
@@ -71,7 +67,52 @@ def schedule_sjf(processes: List[Process]):
         current_process.waiting_time = current_process.turnaround_time - current_process.burst_time
 
         gantt_chart.append((current_process.pid, start_time, current_time))
+        completed_processes += 1
 
+    print_gantt_chart(gantt_chart)
+
+
+def schedule_priority(processes: List[Process]):
+    """
+    Priority Scheduling (Non-Preemptive)
+    Kriter: Priority (Düşük sayı = Yüksek öncelik)
+    Tie-Breaker: FCFS
+    """
+    # Eşitlik durumunda FCFS olması için önce varış zamanına göre sırala
+    processes.sort(key=lambda x: x.arrival_time)
+
+    current_time = 0
+    completed_processes = 0
+    n = len(processes)
+    gantt_chart = []
+
+    print("\n--- Scheduling Algorithm: Priority ---")
+
+    while completed_processes < n:
+        # Hazır kuyruğu: Gelmiş ve bitmemiş olanlar
+        ready_queue = [p for p in processes if p.arrival_time <= current_time and p.finish_time == 0]
+
+        if not ready_queue:
+            remaining_processes = [p for p in processes if p.finish_time == 0]
+            if remaining_processes:
+                next_arrival = min(remaining_processes, key=lambda x: x.arrival_time).arrival_time
+                current_time = next_arrival
+            continue
+
+        # TEK FARK BURASI: Burst Time yerine Priority'ye göre en küçüğü seçiyoruz
+        current_process = min(ready_queue, key=lambda x: x.priority)
+
+        start_time = current_time
+        if current_process.start_time == -1:
+            current_process.start_time = start_time
+
+        current_time += current_process.burst_time
+
+        current_process.finish_time = current_time
+        current_process.turnaround_time = current_process.finish_time - current_process.arrival_time
+        current_process.waiting_time = current_process.turnaround_time - current_process.burst_time
+
+        gantt_chart.append((current_process.pid, start_time, current_time))
         completed_processes += 1
 
     print_gantt_chart(gantt_chart)
