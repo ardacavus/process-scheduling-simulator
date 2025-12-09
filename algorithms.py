@@ -1,3 +1,4 @@
+from collections import deque
 from typing import List
 from process import Process
 from utils import print_gantt_chart
@@ -15,6 +16,7 @@ def schedule_fcfs(processes: List[Process]):
     print("\n--- Scheduling Algorithm: FCFS ---")
 
     for p in processes:
+        # Idle Time Kontrolü
         if current_time < p.arrival_time:
             current_time = p.arrival_time
 
@@ -75,10 +77,7 @@ def schedule_sjf(processes: List[Process]):
 def schedule_priority(processes: List[Process]):
     """
     Priority Scheduling (Non-Preemptive)
-    Kriter: Priority (Düşük sayı = Yüksek öncelik)
-    Tie-Breaker: FCFS
     """
-    # Eşitlik durumunda FCFS olması için önce varış zamanına göre sırala
     processes.sort(key=lambda x: x.arrival_time)
 
     current_time = 0
@@ -89,7 +88,6 @@ def schedule_priority(processes: List[Process]):
     print("\n--- Scheduling Algorithm: Priority ---")
 
     while completed_processes < n:
-        # Hazır kuyruğu: Gelmiş ve bitmemiş olanlar
         ready_queue = [p for p in processes if p.arrival_time <= current_time and p.finish_time == 0]
 
         if not ready_queue:
@@ -99,7 +97,6 @@ def schedule_priority(processes: List[Process]):
                 current_time = next_arrival
             continue
 
-        # TEK FARK BURASI: Burst Time yerine Priority'ye göre en küçüğü seçiyoruz
         current_process = min(ready_queue, key=lambda x: x.priority)
 
         start_time = current_time
@@ -114,5 +111,60 @@ def schedule_priority(processes: List[Process]):
 
         gantt_chart.append((current_process.pid, start_time, current_time))
         completed_processes += 1
+
+    print_gantt_chart(gantt_chart)
+
+
+def schedule_rr(processes: List[Process], time_quantum: int):
+    """
+    Round Robin (RR) Algoritması (Preemptive)
+    """
+    processes.sort(key=lambda x: x.arrival_time)
+
+    current_time = 0
+    completed_processes = 0
+    n = len(processes)
+    gantt_chart = []
+
+    queue = deque()
+    process_idx = 0
+
+    print(f"\n--- Scheduling Algorithm: Round Robin (TQ={time_quantum}) ---")
+
+    while completed_processes < n:
+        # Yeni gelenleri kuyruğa ekle
+        while process_idx < n and processes[process_idx].arrival_time <= current_time:
+            queue.append(processes[process_idx])
+            process_idx += 1
+
+        if not queue:
+            if process_idx < n:
+                current_time = processes[process_idx].arrival_time
+                continue
+
+        current_process = queue.popleft()
+
+        if current_process.start_time == -1:
+            current_process.start_time = current_time
+
+        time_to_run = min(current_process.remaining_time, time_quantum)
+
+        gantt_chart.append((current_process.pid, current_time, current_time + time_to_run))
+
+        current_time += time_to_run
+        current_process.remaining_time -= time_to_run
+
+        # Çalışırken yeni gelen var mı? Varsa önce onları ekle
+        while process_idx < n and processes[process_idx].arrival_time <= current_time:
+            queue.append(processes[process_idx])
+            process_idx += 1
+
+        if current_process.remaining_time == 0:
+            current_process.finish_time = current_time
+            current_process.turnaround_time = current_process.finish_time - current_process.arrival_time
+            current_process.waiting_time = current_process.turnaround_time - current_process.burst_time
+            completed_processes += 1
+        else:
+            queue.append(current_process)
 
     print_gantt_chart(gantt_chart)
