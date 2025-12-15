@@ -37,7 +37,7 @@ A comprehensive, GUI-based **Process Scheduling Simulator** built with Python. T
 python gui.py
 ```
 
-Option 2: Run the Executable
+### Option 2: Run the Executable
 Download the latest .exe from the Releases page.
 
 🏗️ Building from Source
@@ -48,6 +48,7 @@ python build.py
 ```
 
 💻 Technologies
+
 *Language: Python 3.x
 
 *UI Framework: CustomTkinter
