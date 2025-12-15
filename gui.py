@@ -230,46 +230,48 @@ class SchedulerApp(ctk.CTk):
         return sum(p.waiting_time for p in processes) / len(processes)
 
     def render_overview_tab(self, data):
-        # Önceki içeriği temizle
+        # 1. Önceki içeriği (varsa eski grafiği) temizle
         for widget in self.tab_overview.winfo_children():
             widget.destroy()
 
-        # Grafik Çerçevesi
+        # 2. Grafik Çerçevesi Oluştur
         chart_frame = ctk.CTkFrame(self.tab_overview, fg_color="transparent")
         chart_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Matplotlib Figürü
+        # 3. Matplotlib Figürü Hazırla
         fig, ax = plt.subplots(figsize=(8, 5), dpi=100)
-        fig.patch.set_facecolor('#242424')
+        fig.patch.set_facecolor('#242424')  # Arka plan rengi
         ax.set_facecolor('#242424')
 
         algorithms = list(data.keys())
         times = list(data.values())
 
-        # Standart renkler (Kazanan/Kaybeden ayrımı yok, hepsi farklı renk)
+        # Standart renk paleti (Kazanan/Kaybeden ayrımı yok)
         colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C']
 
-        # Barları çiz
+        # 4. Barları Çiz
         bars = ax.bar(algorithms, times, color=colors, width=0.5)
 
-        # Grafik Ayarları
+        # 5. Grafik Ayarları (Başlıklar, Eksenler)
         ax.set_ylabel('Avg Waiting Time (ms)', color='white')
         ax.set_title('Performance Comparison', color='white', pad=20)
         ax.tick_params(axis='x', colors='white')
         ax.tick_params(axis='y', colors='white')
+
+        # Çerçeve çizgilerini gizle/beyaz yap
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_color('white')
         ax.spines['bottom'].set_color('white')
 
-        # Değerleri barların üstüne yaz
+        # 6. Değerleri Sütunların Üstüne Yaz
         for bar in bars:
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2., height,
                     f'{height:.2f}',
                     ha='center', va='bottom', color='white', fontweight='bold')
 
-        # Tkinter'a göm
+        # 7. Grafiği Tkinter Penceresine Göm
         canvas = FigureCanvasTkAgg(fig, master=chart_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)
