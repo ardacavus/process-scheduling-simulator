@@ -35,6 +35,7 @@ def print_metrics(processes: List[Process], algorithm_name: str):
     """
     total_turnaround = 0
     total_waiting = 0
+    total_burst = 0  # Toplam iş süresi (CPU'nun dolu olduğu süre)
 
     print(f"\n{'Process':<10} | {'Finish':<8} | {'Turnaround':<12} | {'Waiting':<8}")
     print("-" * 46)
@@ -43,22 +44,31 @@ def print_metrics(processes: List[Process], algorithm_name: str):
         print(f"{p.pid:<10} | {p.finish_time:<8} | {p.turnaround_time:<12} | {p.waiting_time:<8}")
         total_turnaround += p.turnaround_time
         total_waiting += p.waiting_time
+        total_burst += p.burst_time
 
     if len(processes) > 0:
         avg_turnaround = total_turnaround / len(processes)
         avg_waiting = total_waiting / len(processes)
 
-        # Basit CPU Utilization hesabı: (Son Bitiş - İlk Varış) süresince dolu kabul ediyoruz (şimdilik)
-        # Daha hassas hesap için idle time'ları toplamak gerekebilir.
+        # --- GERÇEK CPU UTILIZATION HESABI ---
+        # Formül: (Toplam Burst Süresi / Toplam Geçen Süre) * 100
+
+        # Simülasyonun bittiği son an
         last_finish_time = max(p.finish_time for p in processes)
+        # Simülasyonun başladığı ilk an (Genelde ilk gelenin varış zamanı)
         first_arrival = min(p.arrival_time for p in processes)
+
+        # Toplam geçen süre (Simülasyon süresi)
         total_duration = last_finish_time - first_arrival
 
-        # Not: Bu utilization hesabı şu an basitleştirilmiştir.
-        # İleride idle time'ı daha hassas hesaplayacağız.
+        if total_duration > 0:
+            utilization = (total_burst / total_duration) * 100
+        else:
+            utilization = 0.0
+
         print(f"\nAverage Turnaround Time: {avg_turnaround:.2f}")
         print(f"Average Waiting Time: {avg_waiting:.2f}")
-        print(f"CPU Utilization: 100.0% (Tahmini)")
+        print(f"CPU Utilization: {utilization:.2f}%")
 
 
 def print_gantt_chart(gantt_data: List[tuple]):

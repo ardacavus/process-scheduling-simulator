@@ -31,6 +31,7 @@ def schedule_fcfs(processes: List[Process]):
         p.waiting_time = p.turnaround_time - p.burst_time
 
     print_gantt_chart(gantt_chart)
+    return gantt_chart
 
 
 def schedule_sjf(processes: List[Process]):
@@ -72,6 +73,7 @@ def schedule_sjf(processes: List[Process]):
         completed_processes += 1
 
     print_gantt_chart(gantt_chart)
+    return gantt_chart
 
 
 def schedule_priority(processes: List[Process]):
@@ -113,6 +115,7 @@ def schedule_priority(processes: List[Process]):
         completed_processes += 1
 
     print_gantt_chart(gantt_chart)
+    return gantt_chart
 
 
 def schedule_rr(processes: List[Process], time_quantum: int):
@@ -168,3 +171,4 @@ def schedule_rr(processes: List[Process], time_quantum: int):
             queue.append(current_process)
 
     print_gantt_chart(gantt_chart)
+    return gantt_chart
