@@ -3,22 +3,26 @@ from tkinter import filedialog, messagebox
 import sys
 import os
 import copy
-import csv  # Excel çıktısı için
+import csv
 import datetime
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-# Modüllerimiz
+# Importing local modules
 from utils import read_input
 from algorithms import schedule_fcfs, schedule_sjf, schedule_priority, schedule_rr
 
-# --- GÖRSEL AYARLAR ---
+# --- VISUAL SETTINGS ---
 ctk.set_appearance_mode("Dark")
 ctk.set_default_color_theme("dark-blue")
 COLORS = ['#3B8ED0', '#E04F5F', '#2CC985', '#E5B350', '#82589F', '#F8EFBA', '#58B19F']
 
 
 class SchedulerApp(ctk.CTk):
+    """
+    Main GUI Application Class.
+    Handles user interaction, simulation orchestration, and result visualization.
+    """
     def __init__(self):
         super().__init__()
 
@@ -28,20 +32,22 @@ class SchedulerApp(ctk.CTk):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- SIDEBAR ---
+        # --- SIDEBAR (Control Panel) ---
         self.sidebar = ctk.CTkFrame(self, width=240, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
         self.logo = ctk.CTkLabel(self.sidebar, text="SCHEDULER\nULTIMATE", font=ctk.CTkFont(size=26, weight="bold"))
         self.logo.grid(row=0, column=0, padx=20, pady=(40, 30))
 
-        self.btn_browse = ctk.CTkButton(self.sidebar, text="📂 Dosya Yükle", command=self.browse_file, height=45,
+        # File Selection Button
+        self.btn_browse = ctk.CTkButton(self.sidebar, text="📂 Load File", command=self.browse_file, height=45,
                                         fg_color="#333333", border_width=1, border_color="gray")
         self.btn_browse.grid(row=1, column=0, padx=20, pady=10)
 
-        self.lbl_filename = ctk.CTkLabel(self.sidebar, text="Dosya: Yok", text_color="#A0A0A0")
+        self.lbl_filename = ctk.CTkLabel(self.sidebar, text="File: None", text_color="#A0A0A0")
         self.lbl_filename.grid(row=2, column=0, padx=20, pady=(0, 20))
 
+        # Round Robin Time Quantum Input
         ctk.CTkLabel(self.sidebar, text="Time Quantum (RR):", anchor="w", font=("Arial", 14, "bold")).grid(row=3,
                                                                                                            column=0,
                                                                                                            padx=20,
@@ -50,20 +56,21 @@ class SchedulerApp(ctk.CTk):
         self.entry_tq.insert(0, "3")
         self.entry_tq.grid(row=4, column=0, padx=20, pady=(0, 30))
 
-        self.btn_run = ctk.CTkButton(self.sidebar, text="🚀 BAŞLAT", command=self.run_simulation, height=60,
+        # Main Simulation Trigger
+        self.btn_run = ctk.CTkButton(self.sidebar, text="🚀 START SIMULATION", command=self.run_simulation, height=60,
                                      fg_color="#1f6aa5", font=ctk.CTkFont(size=18, weight="bold"))
         self.btn_run.grid(row=5, column=0, padx=20, pady=10)
 
-        # --- YENİ EKLENTİ: CSV EXPORT BUTONU ---
-        self.btn_export = ctk.CTkButton(self.sidebar, text="💾 Raporu Kaydet (CSV)", command=self.save_report, height=40,
+        # Export Results Button
+        self.btn_export = ctk.CTkButton(self.sidebar, text="💾 Save Report (CSV)", command=self.save_report, height=40,
                                         fg_color="#27ae60", state="disabled")
         self.btn_export.grid(row=6, column=0, padx=20, pady=(50, 10))
 
-        # --- SAĞ TARAF (SEKMELER) ---
+        # --- RIGHT SIDE (Results View) ---
         self.tabview = ctk.CTkTabview(self, anchor="nw")
         self.tabview.grid(row=0, column=1, padx=20, pady=10, sticky="nsew")
 
-        self.tab_overview = self.tabview.add("📊 Karşılaştırma")
+        self.tab_overview = self.tabview.add("📊 Overview")
         self.tab_fcfs = self.tabview.add("FCFS")
         self.tab_sjf = self.tabview.add("SJF")
         self.tab_prio = self.tabview.add("Priority")
@@ -71,62 +78,66 @@ class SchedulerApp(ctk.CTk):
 
         self.selected_file = None
         self.current_tq = 3
-        self.simulation_results = {}  # Export için verileri burada tutacağız
+        self.simulation_results = {}
 
     def browse_file(self):
+        """Opens file dialog for user to select the process list."""
         filename = filedialog.askopenfilename(filetypes=(("Text Files", "*.txt"), ("All Files", "*.*")))
         if filename:
             self.selected_file = filename
             self.lbl_filename.configure(text=os.path.basename(filename), text_color="#4ade80")
-            self.btn_export.configure(state="disabled")  # Dosya değişince eski raporu iptal et
+            self.btn_export.configure(state="disabled")
 
     def run_simulation(self):
+        """Executes all scheduling algorithms and updates the UI."""
         if not self.selected_file:
-            messagebox.showerror("Hata", "Dosya seçilmedi!")
+            messagebox.showerror("Error", "No file selected!")
             return
         try:
             self.current_tq = int(self.entry_tq.get())
         except ValueError:
-            messagebox.showerror("Hata", "Time Quantum sayı olmalı!")
+            messagebox.showerror("Error", "Time Quantum must be an integer!")
             return
 
         original = read_input(self.selected_file)
-        self.simulation_results = {}  # Sıfırla
+        self.simulation_results = {}
 
-        # --- ALGORİTMALARI KOŞ ---
-        # FCFS
+        # --- EXECUTE ALGORITHMS ---
+        # Note: deepcopy is used to ensure each algorithm starts with a fresh dataset
+
+        # 1. FCFS
         p_fcfs = copy.deepcopy(original)
         gantt_fcfs = schedule_fcfs(p_fcfs)
         self.render_algorithm_tab(self.tab_fcfs, p_fcfs, gantt_fcfs)
         self.simulation_results['FCFS'] = self.calculate_avg_waiting(p_fcfs)
 
-        # SJF
+        # 2. SJF
         p_sjf = copy.deepcopy(original)
         gantt_sjf = schedule_sjf(p_sjf)
         self.render_algorithm_tab(self.tab_sjf, p_sjf, gantt_sjf)
         self.simulation_results['SJF'] = self.calculate_avg_waiting(p_sjf)
 
-        # Priority
+        # 3. Priority
         p_prio = copy.deepcopy(original)
         gantt_prio = schedule_priority(p_prio)
         self.render_algorithm_tab(self.tab_prio, p_prio, gantt_prio)
         self.simulation_results['Priority'] = self.calculate_avg_waiting(p_prio)
 
-        # RR
+        # 4. Round Robin
         p_rr = copy.deepcopy(original)
         gantt_rr = schedule_rr(p_rr, self.current_tq)
         self.render_algorithm_tab(self.tab_rr, p_rr, gantt_rr)
         self.simulation_results[f'RR (TQ={self.current_tq})'] = self.calculate_avg_waiting(p_rr)
 
-        # --- ÖZET ---
+        # --- UPDATE DASHBOARD ---
         self.render_overview_tab(self.simulation_results)
-        self.tabview.set("📊 Karşılaştırma")
+        self.tabview.set("📊 Overview")
 
-        # Export butonunu aktif et
+        # Enable export button
         self.btn_export.configure(state="normal")
 
     def save_report(self):
-        """Sonuçları Excel/CSV olarak kaydet"""
+        """Exports simulation results to a CSV file."""
         if not self.simulation_results:
             return
 
@@ -135,20 +146,21 @@ class SchedulerApp(ctk.CTk):
             try:
                 with open(file_path, mode='w', newline='') as file:
                     writer = csv.writer(file)
-                    # Başlık
+                    # Headers
                     writer.writerow(["Algorithm", "Average Waiting Time (ms)", "Date"])
-                    # Veriler
+                    # Data Rows
                     for algo, score in self.simulation_results.items():
                         writer.writerow([algo, f"{score:.2f}", datetime.datetime.now().strftime("%Y-%m-%d %H:%M")])
 
-                messagebox.showinfo("Başarılı", f"Rapor kaydedildi:\n{file_path}")
+                messagebox.showinfo("Success", f"Report saved successfully:\n{file_path}")
             except Exception as e:
-                messagebox.showerror("Hata", f"Kaydedilemedi: {e}")
+                messagebox.showerror("Error", f"Could not save file: {e}")
 
     def render_algorithm_tab(self, tab, processes, gantt_data):
+        """Populates a tab with Metrics, Gantt Chart, and Data Grid."""
         for widget in tab.winfo_children(): widget.destroy()
 
-        # Metrics
+        # 1. Metrics Cards
         metrics_frame = ctk.CTkFrame(tab, fg_color="transparent")
         metrics_frame.pack(fill="x", pady=10)
 
@@ -172,7 +184,7 @@ class SchedulerApp(ctk.CTk):
                                                                                                          expand=True,
                                                                                                          padx=5)
 
-        # Gantt Chart
+        # 2. Gantt Chart Visualization (Matplotlib)
         chart_frame = ctk.CTkFrame(tab, fg_color="#2B2B2B")
         chart_frame.pack(fill="x", pady=10, padx=5)
         fig, ax = plt.subplots(figsize=(10, 2), dpi=100)
@@ -195,13 +207,13 @@ class SchedulerApp(ctk.CTk):
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_visible(False)
         ax.spines['bottom'].set_color('white')
-        ax.set_xlim(left=0)  # X ekseni 0'dan başlasın
+        ax.set_xlim(left=0)
 
         canvas = FigureCanvasTkAgg(fig, master=chart_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=5)
 
-        # Data Grid
+        # 3. Data Grid (Detailed Table)
         table_frame = ctk.CTkScrollableFrame(tab, fg_color="transparent")
         table_frame.pack(fill="both", expand=True, padx=5, pady=5)
         headers = ["PID", "Arrival", "Burst", "Priority", "Finish", "Turnaround", "Waiting"]
@@ -220,6 +232,7 @@ class SchedulerApp(ctk.CTk):
                 lbl.grid(row=i + 2, column=col, padx=2, pady=1, sticky="ew")
 
     def create_metric_card(self, parent, title, value, color):
+        """Helper to create a styled statistics card."""
         card = ctk.CTkFrame(parent, fg_color=color, corner_radius=8)
         ctk.CTkLabel(card, text=title, font=("Arial", 11, "bold"), text_color="white").pack(pady=(5, 0))
         ctk.CTkLabel(card, text=value, font=("Arial", 20, "bold"), text_color="white").pack(pady=(0, 5))
@@ -230,48 +243,40 @@ class SchedulerApp(ctk.CTk):
         return sum(p.waiting_time for p in processes) / len(processes)
 
     def render_overview_tab(self, data):
-        # 1. Önceki içeriği (varsa eski grafiği) temizle
+        """Renders the performance comparison chart."""
         for widget in self.tab_overview.winfo_children():
             widget.destroy()
 
-        # 2. Grafik Çerçevesi Oluştur
         chart_frame = ctk.CTkFrame(self.tab_overview, fg_color="transparent")
         chart_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # 3. Matplotlib Figürü Hazırla
         fig, ax = plt.subplots(figsize=(8, 5), dpi=100)
-        fig.patch.set_facecolor('#242424')  # Arka plan rengi
+        fig.patch.set_facecolor('#242424')
         ax.set_facecolor('#242424')
 
         algorithms = list(data.keys())
         times = list(data.values())
 
-        # Standart renk paleti (Kazanan/Kaybeden ayrımı yok)
         colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#1A535C']
 
-        # 4. Barları Çiz
         bars = ax.bar(algorithms, times, color=colors, width=0.5)
 
-        # 5. Grafik Ayarları (Başlıklar, Eksenler)
         ax.set_ylabel('Avg Waiting Time (ms)', color='white')
         ax.set_title('Performance Comparison', color='white', pad=20)
         ax.tick_params(axis='x', colors='white')
         ax.tick_params(axis='y', colors='white')
 
-        # Çerçeve çizgilerini gizle/beyaz yap
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_color('white')
         ax.spines['bottom'].set_color('white')
 
-        # 6. Değerleri Sütunların Üstüne Yaz
         for bar in bars:
             height = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2., height,
                     f'{height:.2f}',
                     ha='center', va='bottom', color='white', fontweight='bold')
 
-        # 7. Grafiği Tkinter Penceresine Göm
         canvas = FigureCanvasTkAgg(fig, master=chart_frame)
         canvas.draw()
         canvas.get_tk_widget().pack(fill="both", expand=True)

@@ -1,4 +1,3 @@
-# utils.py
 import sys
 from typing import List
 from process import Process
@@ -6,36 +5,44 @@ from process import Process
 
 def read_input(filename: str) -> List[Process]:
     """
-    Verilen dosyadan süreçleri okur ve Process nesneleri listesi döndürür.
-    Format: Process_ID, Arrival_Time, Burst_Time, Priority
+    Parses the input text file and generates a list of Process objects.
+    Expected Format: Process_ID, Arrival_Time, Burst_Time, Priority
     """
     processes = []
     try:
         with open(filename, 'r') as file:
             for line in file:
+                # Skip empty lines or comments
+                if not line.strip() or line.startswith("#"):
+                    continue
+
                 parts = line.strip().split(',')
-                if len(parts) == 4:
+                if len(parts) >= 3:
                     pid = parts[0].strip()
                     arrival = int(parts[1].strip())
                     burst = int(parts[2].strip())
-                    priority = int(parts[3].strip())
+                    # Default priority to 0 if not specified
+                    priority = int(parts[3].strip()) if len(parts) > 3 else 0
+
                     processes.append(Process(pid, arrival, burst, priority))
+
     except FileNotFoundError:
-        print(f"Hata: '{filename}' dosyası bulunamadı.")
+        print(f"Error: File '{filename}' not found.")
         sys.exit(1)
     except ValueError:
-        print("Hata: Dosya formatı geçersiz. Sayısal değerler kontrol edilmeli.")
+        print("Error: Invalid file format. Ensure time values are integers.")
         sys.exit(1)
+
     return processes
 
 
 def print_metrics(processes: List[Process], algorithm_name: str):
     """
-    Hesaplanan metrikleri ve sonuç tablosunu ekrana basar.
+    Calculates and displays performance metrics (Turnaround, Waiting, Utilization).
     """
     total_turnaround = 0
     total_waiting = 0
-    total_burst = 0  # Toplam iş süresi (CPU'nun dolu olduğu süre)
+    total_burst = 0
 
     print(f"\n{'Process':<10} | {'Finish':<8} | {'Turnaround':<12} | {'Waiting':<8}")
     print("-" * 46)
@@ -50,15 +57,11 @@ def print_metrics(processes: List[Process], algorithm_name: str):
         avg_turnaround = total_turnaround / len(processes)
         avg_waiting = total_waiting / len(processes)
 
-        # --- GERÇEK CPU UTILIZATION HESABI ---
-        # Formül: (Toplam Burst Süresi / Toplam Geçen Süre) * 100
+        # --- CPU UTILIZATION CALCULATION ---
+        # Formula: (Total Burst Time / Total Simulation Duration) * 100
 
-        # Simülasyonun bittiği son an
         last_finish_time = max(p.finish_time for p in processes)
-        # Simülasyonun başladığı ilk an (Genelde ilk gelenin varış zamanı)
         first_arrival = min(p.arrival_time for p in processes)
-
-        # Toplam geçen süre (Simülasyon süresi)
         total_duration = last_finish_time - first_arrival
 
         if total_duration > 0:
@@ -73,8 +76,8 @@ def print_metrics(processes: List[Process], algorithm_name: str):
 
 def print_gantt_chart(gantt_data: List[tuple]):
     """
-    Gantt şemasını görselleştirir.
-    Veri formatı: [(PID, Start, End), ...]
+    Visualizes the execution timeline in the console.
+    Data Format: [(PID, Start, End), ...]
     """
     print("Gantt Chart: ", end="")
     for pid, start, end in gantt_data:
