@@ -1,0 +1,10 @@
+# TeX ve HTML dosyalarını dil istatistiklerinde yoksay
+*.tex linguist-vendored
+*.html linguist-vendored
+*.css linguist-vendored
+
+# Rapor klasörün varsa onu komple yoksay (Örnek: report klasörü)
+# report/* linguist-vendored
+
+# Python dosyalarını kesinlikle tanı
+*.py linguist-detectable=true
