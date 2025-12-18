@@ -187,3 +187,16 @@ def schedule_rr(processes: List[Process], time_quantum: int):
 
     print_gantt_chart(gantt_chart)
     return gantt_chart
+
+
+def check_starvation(processes: List[Process], threshold: int = 50):
+    """
+    Checks if any process has waited longer than the threshold.
+    Returns a list of starved process IDs.
+    """
+    starved_procs = []
+    for p in processes:
+        if p.waiting_time > threshold:
+            starved_procs.append(f"{p.pid} (Wait: {p.waiting_time}ms)")
+
+    return starved_procs

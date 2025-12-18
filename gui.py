@@ -10,7 +10,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Importing local modules
 from utils import read_input
-from algorithms import schedule_fcfs, schedule_sjf, schedule_priority, schedule_rr
+# check_starvation fonksiyonunu import ettiğimizden emin oluyoruz
+from algorithms import schedule_fcfs, schedule_sjf, schedule_priority, schedule_rr, check_starvation
 
 # --- VISUAL SETTINGS ---
 ctk.set_appearance_mode("Dark")
@@ -23,6 +24,7 @@ class SchedulerApp(ctk.CTk):
     Main GUI Application Class.
     Handles user interaction, simulation orchestration, and result visualization.
     """
+
     def __init__(self):
         super().__init__()
 
@@ -57,7 +59,7 @@ class SchedulerApp(ctk.CTk):
         self.entry_tq.grid(row=4, column=0, padx=20, pady=(0, 30))
 
         # Main Simulation Trigger
-        self.btn_run = ctk.CTkButton(self.sidebar, text="🚀 START SIMULATION", command=self.run_simulation, height=60,
+        self.btn_run = ctk.CTkButton(self.sidebar, text="▶ START SIMULATION", command=self.run_simulation, height=60,
                                      fg_color="#1f6aa5", font=ctk.CTkFont(size=18, weight="bold"))
         self.btn_run.grid(row=5, column=0, padx=20, pady=10)
 
@@ -102,6 +104,9 @@ class SchedulerApp(ctk.CTk):
         original = read_input(self.selected_file)
         self.simulation_results = {}
 
+        # List to collect starvation warnings
+        starvation_warnings = []
+
         # --- EXECUTE ALGORITHMS ---
         # Note: deepcopy is used to ensure each algorithm starts with a fresh dataset
 
@@ -117,11 +122,21 @@ class SchedulerApp(ctk.CTk):
         self.render_algorithm_tab(self.tab_sjf, p_sjf, gantt_sjf)
         self.simulation_results['SJF'] = self.calculate_avg_waiting(p_sjf)
 
+        # Check for Starvation in SJF (Threshold 50ms)
+        starved_sjf = check_starvation(p_sjf, threshold=50)
+        if starved_sjf:
+            starvation_warnings.append(f"SJF Algorithm:\n" + ", ".join(starved_sjf))
+
         # 3. Priority
         p_prio = copy.deepcopy(original)
         gantt_prio = schedule_priority(p_prio)
         self.render_algorithm_tab(self.tab_prio, p_prio, gantt_prio)
         self.simulation_results['Priority'] = self.calculate_avg_waiting(p_prio)
+
+        # Check for Starvation in Priority (Threshold 50ms)
+        starved_prio = check_starvation(p_prio, threshold=50)
+        if starved_prio:
+            starvation_warnings.append(f"Priority Algorithm:\n" + ", ".join(starved_prio))
 
         # 4. Round Robin
         p_rr = copy.deepcopy(original)
@@ -135,6 +150,52 @@ class SchedulerApp(ctk.CTk):
 
         # Enable export button
         self.btn_export.configure(state="normal")
+
+        # --- SHOW STARVATION WARNING (Modern Popup) ---
+        if starvation_warnings:
+            self.show_starvation_popup(starvation_warnings)
+
+    def show_starvation_popup(self, warnings):
+        """Creates a modern, dark-themed custom popup for starvation warnings."""
+        popup = ctk.CTkToplevel(self)
+        popup.title("⚠️ Critical Alert")
+        popup.geometry("500x450")
+        popup.attributes("-topmost", True)
+
+        # Bring window to front
+        popup.after(100, popup.lift)
+        popup.after(100, lambda: popup.focus_force())
+
+        # 1. Header Section
+        title_frame = ctk.CTkFrame(popup, fg_color="transparent")
+        title_frame.pack(pady=(25, 10))
+
+        icon_label = ctk.CTkLabel(title_frame, text="⚠️", font=("Arial", 40))
+        icon_label.pack(side="left", padx=10)
+
+        text_label = ctk.CTkLabel(title_frame, text="STARVATION DETECTED",
+                                  font=("Arial", 22, "bold"), text_color="#ff5555")
+        text_label.pack(side="left")
+
+        # 2. Description
+        ctk.CTkLabel(popup,
+                     text="The following processes have waited excessively (>50ms).\nThis indicates a high risk of resource starvation.",
+                     font=("Arial", 14), text_color="#dddddd").pack(pady=5)
+
+        # 3. Scrollable List
+        scroll_frame = ctk.CTkScrollableFrame(popup, width=420, height=200, fg_color="#2b2b2b", corner_radius=10)
+        scroll_frame.pack(pady=15, padx=20, fill="both", expand=True)
+
+        full_text = "\n\n".join(warnings)
+        msg_label = ctk.CTkLabel(scroll_frame, text=full_text, font=("Consolas", 13),
+                                 text_color="white", justify="left", anchor="w")
+        msg_label.pack(padx=10, pady=10, fill="x")
+
+        # 4. Close Button
+        btn_close = ctk.CTkButton(popup, text="Acknowledge", command=popup.destroy,
+                                  fg_color="#ff5555", hover_color="#cc0000", height=40, width=200,
+                                  font=("Arial", 14, "bold"))
+        btn_close.pack(pady=(0, 20))
 
     def save_report(self):
         """Exports simulation results to a CSV file."""
